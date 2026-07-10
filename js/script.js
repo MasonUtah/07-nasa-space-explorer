@@ -7,6 +7,13 @@ const modal = document.createElement('div');
 modal.className = 'modal-overlay';
 modal.setAttribute('aria-hidden', 'true');
 document.body.appendChild(modal);
+const loader = document.createElement('div');
+loader.className = 'loader-overlay';
+loader.innerHTML = `
+  <div class="loader-spinner" aria-hidden="true"></div>
+  <div class="loader-text">Loading space images…</div>
+`;
+document.body.appendChild(loader);
 
 // Put your NASA API key here
 const apiKey = 'edqo96rwPl1yl6accAhA8GsglQLudzhE5nJJvr2z';
@@ -25,7 +32,18 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
-function openModal(mediaType, mediaUrl, title) {
+function showLoader(text) {
+  if (text) loader.querySelector('.loader-text').textContent = text;
+  loader.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function hideLoader() {
+  loader.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function openModal(mediaType, mediaUrl, title, date, description) {
   let mediaContent = '';
   const resolvedUrl = decodeURIComponent(mediaUrl);
 
@@ -60,7 +78,9 @@ function openModal(mediaType, mediaUrl, title) {
     <div class="modal-content">
       <button class="modal-close" type="button" aria-label="Close preview">×</button>
       <h2>${title}</h2>
+      <p class="media-date">${date || 'Date unknown'}</p>
       ${mediaContent}
+      <p class="modal-description">${description || ''}</p>
     </div>
   `;
 
@@ -120,7 +140,7 @@ function createGalleryCard(item) {
   if (item.media_type === 'image') {
     const imageUrl = item.url || item.hdurl;
     card.innerHTML = `
-      <div class="media-trigger" role="button" tabindex="0" data-media-type="image" data-media-url="${encodeURIComponent(imageUrl)}" data-media-title="${encodeURIComponent(title)}">
+      <div class="media-trigger" role="button" tabindex="0" data-media-type="image" data-media-url="${encodeURIComponent(imageUrl)}" data-media-title="${encodeURIComponent(title)}" data-media-date="${encodeURIComponent(item.date || '')}" data-media-desc="${encodeURIComponent(description)}">
         <img src="${imageUrl}" alt="${title}" loading="lazy" decoding="async" />
       </div>
       <h2>${title}</h2>
@@ -157,7 +177,7 @@ function createGalleryCard(item) {
     }
 
     card.innerHTML = `
-      <div class="media-trigger" role="button" tabindex="0" data-media-type="video" data-media-url="${encodeURIComponent(videoUrl)}" data-media-title="${encodeURIComponent(title)}">
+      <div class="media-trigger" role="button" tabindex="0" data-media-type="video" data-media-url="${encodeURIComponent(videoUrl)}" data-media-title="${encodeURIComponent(title)}" data-media-date="${encodeURIComponent(item.date || '')}" data-media-desc="${encodeURIComponent(description)}">
         ${mediaMarkup}
       </div>
       <h2>${title}</h2>
@@ -177,17 +197,24 @@ function createGalleryCard(item) {
   const trigger = card.querySelector('.media-trigger');
 
   if (trigger) {
-    const mediaType = trigger.dataset.mediaType;
-    const mediaUrl = trigger.dataset.mediaUrl;
-
     trigger.addEventListener('click', () => {
-      openModal(mediaType, mediaUrl, title);
+      const mediaType = trigger.dataset.mediaType;
+      const mediaUrl = trigger.dataset.mediaUrl ? decodeURIComponent(trigger.dataset.mediaUrl) : '';
+      const mediaTitle = trigger.dataset.mediaTitle ? decodeURIComponent(trigger.dataset.mediaTitle) : title;
+      const mediaDate = trigger.dataset.mediaDate ? decodeURIComponent(trigger.dataset.mediaDate) : '';
+      const mediaDesc = trigger.dataset.mediaDesc ? decodeURIComponent(trigger.dataset.mediaDesc) : description;
+      openModal(mediaType, mediaUrl, mediaTitle, mediaDate, mediaDesc);
     });
 
     trigger.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        openModal(mediaType, mediaUrl, title);
+        const mediaType = trigger.dataset.mediaType;
+        const mediaUrl = trigger.dataset.mediaUrl ? decodeURIComponent(trigger.dataset.mediaUrl) : '';
+        const mediaTitle = trigger.dataset.mediaTitle ? decodeURIComponent(trigger.dataset.mediaTitle) : title;
+        const mediaDate = trigger.dataset.mediaDate ? decodeURIComponent(trigger.dataset.mediaDate) : '';
+        const mediaDesc = trigger.dataset.mediaDesc ? decodeURIComponent(trigger.dataset.mediaDesc) : description;
+        openModal(mediaType, mediaUrl, mediaTitle, mediaDate, mediaDesc);
       }
     });
   }
@@ -204,6 +231,9 @@ async function fetchSpaceImages(startDate, endDate) {
   }
 
   showLoadingState();
+
+  // Show full-screen loader while switching date ranges
+  showLoader('Loading images for selected dates...');
 
   const apiUrl = `https://api.nasa.gov/planetary/apod?api_key=${apiKey}&start_date=${startDate}&end_date=${endDate}`;
 
@@ -225,6 +255,9 @@ async function fetchSpaceImages(startDate, endDate) {
     renderResults(data);
   } catch (error) {
     showError(error.message || 'Something went wrong. Please try again.');
+  } finally {
+    // Hide loader no matter what
+    hideLoader();
   }
 }
 
