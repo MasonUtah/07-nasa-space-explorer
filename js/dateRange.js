@@ -13,7 +13,7 @@ function setupDateInputs(startInput, endInput) {
   startInput.max = today;
   endInput.min = earliestDate;
   endInput.max = today;
-
+//
   // Default: Show the most recent 9 days of space images
   const lastWeek = new Date();
   lastWeek.setDate(lastWeek.getDate() - 8); // minus 8 because it includes today
